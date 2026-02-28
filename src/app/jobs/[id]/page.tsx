@@ -706,7 +706,7 @@ export default function JobDetailPage({
       </div>
 
       {/* ── Split Panel: vertical steps left + content right ── */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 min-h-0">
         {/* LEFT: Steps Panel */}
         <div className="w-72 shrink-0 border-r border-white/10 overflow-y-auto" style={{ background: '#002535' }}>
           <div className="px-5 py-3 border-b border-white/10">
