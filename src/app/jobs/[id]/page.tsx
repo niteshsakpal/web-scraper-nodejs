@@ -349,7 +349,7 @@ function ScrapeResultCard({
             </div>
             <div className="p-5 overflow-auto" style={{ maxHeight: "calc(100vh - 420px)" }}>
               <div
-                className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-li:text-gray-700 prose-strong:text-gray-900"
+                className="prose prose-sm max-w-none break-words overflow-x-auto prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-li:text-gray-700 prose-strong:text-gray-900"
                 dangerouslySetInnerHTML={{ __html: currentContent.html }}
               />
             </div>
@@ -378,7 +378,7 @@ function ScrapeResultCard({
                 <div className="text-sm text-red-600 py-4">{currentTranslation.error}</div>
               ) : (
                 <div
-                  className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-li:text-gray-700 prose-strong:text-gray-900"
+                  className="prose prose-sm max-w-none break-words overflow-x-auto prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-li:text-gray-700 prose-strong:text-gray-900"
                   dangerouslySetInnerHTML={{ __html: currentTranslation.html }}
                 />
               )}
@@ -390,7 +390,7 @@ function ScrapeResultCard({
         <div className="rounded-xl border border-gray-200 bg-white overflow-hidden">
           <div className="p-6 overflow-auto" style={{ maxHeight: "calc(100vh - 380px)" }}>
             <div
-              className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-li:text-gray-700 prose-strong:text-gray-900"
+              className="prose prose-sm max-w-none break-words overflow-x-auto prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-li:text-gray-700 prose-strong:text-gray-900"
               dangerouslySetInnerHTML={{ __html: currentContent.html }}
             />
           </div>
@@ -463,7 +463,7 @@ function ReasoningCollapsible({ reasoning }: { reasoning: string }) {
       {open && (
         <div className="border-t border-amber-200 px-4 py-4">
           <div
-            className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900"
+            className="prose prose-sm max-w-none break-words overflow-x-auto prose-headings:text-gray-900 prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900"
             dangerouslySetInnerHTML={{ __html: reasoning }}
           />
         </div>
@@ -512,7 +512,7 @@ function FileSummaryContent({ file }: { file: SummarizationFileResult }) {
 
         {/* Streamed summary output */}
         <div
-          className="prose prose-sm max-w-none prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-li:text-gray-700 prose-strong:text-gray-900"
+          className="prose prose-sm max-w-none break-words overflow-x-auto prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-li:text-gray-700 prose-strong:text-gray-900"
           dangerouslySetInnerHTML={{ __html: displayed }}
         />
         {!done && (
@@ -706,7 +706,7 @@ export default function JobDetailPage({
       </div>
 
       {/* ── Split Panel: vertical steps left + content right ── */}
-      <div className="flex" style={{ minHeight: 'calc(100vh - 140px)' }}>
+      <div className="flex flex-1" style={{ height: 'calc(100vh - 140px)', minHeight: 0 }}>
         {/* LEFT: Steps Panel */}
         <div className="w-72 shrink-0 border-r border-white/10 overflow-y-auto sticky top-0 self-start" style={{ background: '#002535', maxHeight: 'calc(100vh - 140px)' }}>
           <div className="px-5 py-3 border-b border-white/10">
@@ -823,7 +823,7 @@ export default function JobDetailPage({
         </div>
 
         {/* RIGHT: Content Panel */}
-        <div className="flex-1 bg-gray-50 p-8 min-w-0">
+        <div className="flex-1 bg-gray-50 p-8 min-w-0 overflow-y-auto overflow-x-hidden">
           <div key={selectedStageIdx} className="stage-content-enter">
           {/* Content header */}
           <div className="flex items-center justify-between mb-6">
