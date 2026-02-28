@@ -3,7 +3,9 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import branding from "@/config/branding";
+import { useState, useEffect, useCallback } from "react";
+import brandingDefaults from "@/config/branding";
+import { getActiveProfile, type BrandingProfile } from "@/config/brandingProfiles";
 
 const navItems = [
   {
@@ -36,24 +38,59 @@ const navItems = [
   },
 ];
 
+/** Hook that returns the active branding profile, re-renders on change */
+export function useActiveBranding() {
+  const [brand, setBrand] = useState<BrandingProfile | null>(null);
+
+  const refresh = useCallback(() => {
+    setBrand(getActiveProfile());
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    window.addEventListener("branding-changed", refresh);
+    return () => window.removeEventListener("branding-changed", refresh);
+  }, [refresh]);
+
+  // Fallback to static defaults during SSR / before hydration
+  if (!brand) {
+    return {
+      logoUrl: brandingDefaults.logoUrl,
+      primaryColor: brandingDefaults.primaryColor,
+      headerBg: brandingDefaults.headerBg,
+      headerText: brandingDefaults.headerText,
+      name: "Synechron",
+    };
+  }
+  return brand;
+}
+
 export default function Sidebar() {
   const pathname = usePathname();
+  const brand = useActiveBranding();
 
   return (
     <header
       className="flex items-center px-6 py-3 shadow-lg"
-      style={{ backgroundColor: branding.headerBg }}
+      style={{ backgroundColor: brand.headerBg }}
     >
       {/* Logo */}
       <div className="flex items-center mr-8">
-        <Image
-          src={branding.logoUrl}
-          alt={branding.appName}
-          width={120}
-          height={28}
-          className="h-7 w-auto brightness-0 invert"
-          priority
-        />
+        {brand.logoUrl ? (
+          <Image
+            src={brand.logoUrl}
+            alt={brand.name ?? "Logo"}
+            width={120}
+            height={28}
+            className="h-7 w-auto brightness-0 invert"
+            priority
+            unoptimized={brand.logoUrl.startsWith("data:")}
+          />
+        ) : (
+          <span className="text-lg font-bold" style={{ color: brand.headerText }}>
+            {brand.name}
+          </span>
+        )}
       </div>
 
       {/* Navigation */}
@@ -71,25 +108,23 @@ export default function Sidebar() {
               style={
                 active
                   ? {
-                      backgroundColor: branding.sidebarActiveColor,
-                      color: branding.sidebarActiveTextColor,
+                      backgroundColor: `${brand.primaryColor}22`,
+                      color: brand.primaryColor,
                     }
                   : {
-                      color: "rgba(255,255,255,0.7)",
+                      color: `${brand.headerText}B3`,
                     }
               }
             >
               <span>{item.icon}</span>
-              <span>
-                {item.label}
-              </span>
+              <span>{item.label}</span>
             </Link>
           );
         })}
       </nav>
 
       {/* Version pushed right */}
-      <div className="ml-auto text-[11px]" style={{ color: "rgba(255,255,255,0.4)" }}>v0.1.0</div>
+      <div className="ml-auto text-[11px]" style={{ color: `${brand.headerText}66` }}>v0.1.0</div>
     </header>
   );
 }
