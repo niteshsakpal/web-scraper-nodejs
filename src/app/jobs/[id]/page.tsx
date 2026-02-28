@@ -706,9 +706,9 @@ export default function JobDetailPage({
       </div>
 
       {/* ── Split Panel: vertical steps left + content right ── */}
-      <div className="flex flex-1 min-h-0">
+      <div className="flex" style={{ minHeight: 'calc(100vh - 140px)' }}>
         {/* LEFT: Steps Panel */}
-        <div className="w-72 shrink-0 border-r border-white/10 overflow-y-auto" style={{ background: '#002535' }}>
+        <div className="w-72 shrink-0 border-r border-white/10 overflow-y-auto sticky top-0 self-start" style={{ background: '#002535', maxHeight: 'calc(100vh - 140px)' }}>
           <div className="px-5 py-3 border-b border-white/10">
             <div className="text-xs font-semibold uppercase tracking-wide text-white/40">
               Processing Steps
@@ -823,7 +823,7 @@ export default function JobDetailPage({
         </div>
 
         {/* RIGHT: Content Panel */}
-        <div className="flex-1 overflow-y-auto bg-gray-50 p-8">
+        <div className="flex-1 bg-gray-50 p-8 min-w-0">
           <div key={selectedStageIdx} className="stage-content-enter">
           {/* Content header */}
           <div className="flex items-center justify-between mb-6">
