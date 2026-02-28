@@ -3,13 +3,14 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { getApiClient } from "@/services/api.client";
-import branding from "@/config/branding";
+import { useActiveBranding } from "@/components/layout/Sidebar";
 
 export default function Home() {
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
+  const branding = useActiveBranding();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -87,7 +88,7 @@ export default function Home() {
               className="flex items-center gap-2 whitespace-nowrap rounded-xl px-7 py-4 text-sm font-bold shadow-lg transition-all disabled:cursor-not-allowed disabled:opacity-40 hover:scale-105 active:scale-95"
               style={{
                 backgroundColor: branding.primaryColor,
-                color: branding.primaryTextColor,
+                color: branding.headerBg,
               }}
             >
               {loading ? (

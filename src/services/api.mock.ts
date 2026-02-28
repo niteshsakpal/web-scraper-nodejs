@@ -102,8 +102,28 @@ function getNextJobId(): number {
   return id;
 }
 
+/** Persist jobs to localStorage so they survive page reloads */
+function loadJobsFromStorage(): Job[] {
+  if (typeof window === "undefined") return [...mockJobs];
+  try {
+    const stored = localStorage.getItem("rhs_jobs");
+    if (stored) {
+      const parsed = JSON.parse(stored) as Job[];
+      return parsed.length > 0 ? parsed : [...mockJobs];
+    }
+  } catch { /* ignore */ }
+  return [...mockJobs];
+}
+
+function saveJobsToStorage(jobs: Job[]) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem("rhs_jobs", JSON.stringify(jobs));
+  } catch { /* ignore */ }
+}
+
 export class MockApiClient implements ApiClient {
-  private jobs: Job[] = [...mockJobs];
+  private jobs: Job[] = loadJobsFromStorage();
 
   async listJobs(): Promise<Job[]> {
     await delay(200);
@@ -135,6 +155,7 @@ export class MockApiClient implements ApiClient {
       createdAt: now,
     };
     this.jobs.unshift(job);
+    saveJobsToStorage(this.jobs);
     this.simulateProgress(job.id);
     await delay(250);
     return JSON.parse(JSON.stringify(job));
@@ -388,5 +409,6 @@ export class MockApiClient implements ApiClient {
     }
 
     job.status = "Complete";
+    saveJobsToStorage(this.jobs);
   }
 }
