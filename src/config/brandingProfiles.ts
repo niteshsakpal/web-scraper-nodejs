@@ -52,13 +52,21 @@ function readCachedProfiles(): BrandingProfile[] {
       const parsed = JSON.parse(raw) as BrandingProfile[];
       if (parsed.length > 0) return parsed;
     }
+    // First visit or empty — seed localStorage with the default profile
+    const seed = [DEFAULT_PROFILE];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(seed));
+    return seed;
   } catch { /* */ }
   return [DEFAULT_PROFILE];
 }
 
 function readCachedActiveId(): string {
   if (typeof window === "undefined") return DEFAULT_PROFILE.id;
-  return localStorage.getItem(ACTIVE_KEY) ?? DEFAULT_PROFILE.id;
+  const stored = localStorage.getItem(ACTIVE_KEY);
+  if (stored) return stored;
+  // Seed the active key so it persists from the start
+  localStorage.setItem(ACTIVE_KEY, DEFAULT_PROFILE.id);
+  return DEFAULT_PROFILE.id;
 }
 
 /* ── Async server-backed API (source of truth) ── */
