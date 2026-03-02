@@ -5,7 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState, useEffect, useCallback } from "react";
 import brandingDefaults from "@/config/branding";
-import { getActiveProfile, type BrandingProfile } from "@/config/brandingProfiles";
+import { fetchActiveProfile, type BrandingProfile } from "@/config/brandingProfiles";
 
 const navItems = [
   {
@@ -43,7 +43,7 @@ export function useActiveBranding() {
   const [brand, setBrand] = useState<BrandingProfile | null>(null);
 
   const refresh = useCallback(() => {
-    setBrand(getActiveProfile());
+    fetchActiveProfile().then(setBrand);
   }, []);
 
   useEffect(() => {
