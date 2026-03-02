@@ -116,6 +116,7 @@ function AIPromptsTab() {
    Branding Tab
    ============================================================ */
 function BrandingTab() {
+  const [mounted, setMounted] = useState(false);
   const [profiles, setProfiles] = useState<BrandingProfile[]>([]);
   const [activeId, setActiveId] = useState("");
   const [editing, setEditing] = useState<BrandingProfile | null>(null);
@@ -129,7 +130,10 @@ function BrandingTab() {
     setActiveId(getActiveProfileId());
   }, []);
 
-  useEffect(() => { reload(); }, [reload]);
+  useEffect(() => {
+    reload();
+    setMounted(true);
+  }, [reload]);
 
   const selectProfile = (p: BrandingProfile) => {
     setEditing({ ...p });
@@ -193,6 +197,15 @@ function BrandingTab() {
   };
 
   const isActiveEditing = editing && editing.id === activeId;
+
+  // Prevent rendering before client hydration to avoid flash of empty state
+  if (!mounted) {
+    return (
+      <div className="flex items-center justify-center py-12 text-gray-400 text-sm">
+        Loading branding profiles…
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

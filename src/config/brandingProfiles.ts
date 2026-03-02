@@ -38,8 +38,12 @@ function readProfiles(): BrandingProfile[] {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as BrandingProfile[];
-      return parsed.length > 0 ? parsed : [DEFAULT_PROFILE];
+      if (parsed.length > 0) return parsed;
     }
+    // First visit or empty — seed localStorage with the default profile
+    const seed = [DEFAULT_PROFILE];
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(seed));
+    return seed;
   } catch {
     /* ignore */
   }
@@ -63,7 +67,11 @@ export function getProfiles(): BrandingProfile[] {
 
 export function getActiveProfileId(): string {
   if (typeof window === "undefined") return DEFAULT_PROFILE.id;
-  return localStorage.getItem(ACTIVE_KEY) ?? DEFAULT_PROFILE.id;
+  const stored = localStorage.getItem(ACTIVE_KEY);
+  if (stored) return stored;
+  // Seed the active key so it persists from the start
+  localStorage.setItem(ACTIVE_KEY, DEFAULT_PROFILE.id);
+  return DEFAULT_PROFILE.id;
 }
 
 export function getActiveProfile(): BrandingProfile {
