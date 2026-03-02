@@ -93,54 +93,89 @@ async function callScrapeApi(url: string, identifier: string, crawlDelay: number
   }
 }
 
-/** Persist the job counter in localStorage so it survives page reloads */
-function getNextJobId(): number {
-  if (typeof window === "undefined") return 100000;
-  const stored = localStorage.getItem("rhs_next_job_id");
-  const id = stored ? parseInt(stored, 10) : 100000;
-  localStorage.setItem("rhs_next_job_id", String(id + 1));
-  return id;
+/** Get next job ID from server */
+async function getNextJobIdFromServer(): Promise<number> {
+  try {
+    const res = await fetch("/api/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    const data = await res.json();
+    return parseInt(data.id, 10);
+  } catch {
+    return Date.now(); // fallback
+  }
 }
 
-/** Persist jobs to localStorage so they survive page reloads */
-function loadJobsFromStorage(): Job[] {
-  if (typeof window === "undefined") return [...mockJobs];
+/** Load jobs from server */
+async function loadJobsFromServer(): Promise<Job[]> {
   try {
-    const stored = localStorage.getItem("rhs_jobs");
-    if (stored) {
-      const parsed = JSON.parse(stored) as Job[];
-      return parsed.length > 0 ? parsed : [...mockJobs];
-    }
+    const res = await fetch("/api/jobs");
+    const data = await res.json();
+    return data.jobs ?? [];
+  } catch {
+    return [];
+  }
+}
+
+/** Save a single job to server */
+async function saveJobToServer(job: Job) {
+  try {
+    await fetch(`/api/jobs/${job.id}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(job),
+    });
   } catch { /* ignore */ }
-  return [...mockJobs];
 }
 
-function saveJobsToStorage(jobs: Job[]) {
-  if (typeof window === "undefined") return;
+/** Save a new job to server */
+async function createJobOnServer(job: Job) {
   try {
-    localStorage.setItem("rhs_jobs", JSON.stringify(jobs));
+    await fetch("/api/jobs", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(job),
+    });
   } catch { /* ignore */ }
 }
 
 export class MockApiClient implements ApiClient {
-  private jobs: Job[] = loadJobsFromStorage();
+  private jobs: Job[] = [];
+  private loaded = false;
+
+  private async ensureLoaded() {
+    if (!this.loaded) {
+      this.jobs = await loadJobsFromServer();
+      this.loaded = true;
+    }
+  }
 
   async listJobs(): Promise<Job[]> {
-    await delay(200);
+    // Always fetch from server for fresh cross-browser data
+    const serverJobs = await loadJobsFromServer();
+    // Merge: keep local in-progress jobs that server might not have yet
+    for (const local of this.jobs) {
+      if (!serverJobs.find((s) => s.id === local.id)) {
+        serverJobs.push(local);
+      }
+    }
+    this.jobs = serverJobs;
     return [...this.jobs].sort((a, b) =>
       a.createdAt < b.createdAt ? 1 : -1
     );
   }
 
   async getJob(id: string): Promise<Job> {
-    await delay(100);
+    await this.ensureLoaded();
     const job = this.jobs.find((j) => j.id === id);
     if (!job) throw new Error("Job not found");
     return JSON.parse(JSON.stringify(job));
   }
 
   async createJob({ url }: CreateJobInput): Promise<Job> {
-    const id = getNextJobId();
+    const id = await getNextJobIdFromServer();
     const now = new Date().toISOString();
     const stages: Stage[] = STAGES.map((name) => ({
       name,
@@ -155,14 +190,17 @@ export class MockApiClient implements ApiClient {
       createdAt: now,
     };
     this.jobs.unshift(job);
-    saveJobsToStorage(this.jobs);
+    await createJobOnServer(job);
     this.simulateProgress(job.id);
     await delay(250);
     return JSON.parse(JSON.stringify(job));
   }
 
   async getDashboardStats(): Promise<DashboardStats> {
-    await delay(150);
+    await this.ensureLoaded();
+    // Also refresh from server
+    const serverJobs = await loadJobsFromServer();
+    if (serverJobs.length > 0) this.jobs = serverJobs;
     const total = this.jobs.length;
     const complete = this.jobs.filter((j) => j.status === "Complete").length;
     const successRate = total ? Math.round((complete / total) * 100) + "%" : "0%";
@@ -219,6 +257,7 @@ export class MockApiClient implements ApiClient {
         valStage.status = "Failed";
         valStage.details = `Scraping not allowed: ${d.reason}`;
         job.status = "Failed";
+        await saveJobToServer(job);
         return;
       }
 
@@ -229,8 +268,10 @@ export class MockApiClient implements ApiClient {
       valStage.status = "Failed";
       valStage.details = `Validation API error: ${result.error ?? "Unknown error"}`;
       job.status = "Failed";
+      await saveJobToServer(job);
       return;
     }
+    await saveJobToServer(job);
 
     /* ── Stage 2: Scraping (real API call) ── */
     const scrapeStage = job.stages[1];
@@ -250,6 +291,7 @@ export class MockApiClient implements ApiClient {
       scrapeStage.status = "Failed";
       scrapeStage.details = `Scraping API error: ${scrapeResult.error}`;
       job.status = "Failed";
+      await saveJobToServer(job);
       return;
     }
 
@@ -265,6 +307,7 @@ export class MockApiClient implements ApiClient {
     scrapeStage.status = "Complete";
     const totalFiles = htmlFiles.length + pdfFiles.length;
     scrapeStage.details = `Scraped ${totalFiles} file(s): ${htmlFiles.length} HTML, ${pdfFiles.length} PDF.`;
+    await saveJobToServer(job);
 
     /* ── Stage 3: Summarization (real AI API call per file) ── */
     const sumStage = job.stages[2];
@@ -317,6 +360,7 @@ export class MockApiClient implements ApiClient {
       sumStage.status = "Complete";
       sumStage.details = `Summarized ${filesToSummarize.length - failCount}/${filesToSummarize.length} file(s). ${failCount} failed.`;
     }
+    await saveJobToServer(job);
 
     /* ── Stage 4: Materiality (real AI API call per file) ── */
     const matStage = job.stages[3];
@@ -362,6 +406,7 @@ export class MockApiClient implements ApiClient {
       matStage.status = "Complete";
       matStage.details = `Analyzed ${filesToSummarize.length - failCount}/${filesToSummarize.length} file(s). ${failCount} failed.`;
     }
+    await saveJobToServer(job);
 
     /* ── Stage 5: Applicability (real AI API call per file) ── */
     const appStage = job.stages[4];
@@ -409,6 +454,6 @@ export class MockApiClient implements ApiClient {
     }
 
     job.status = "Complete";
-    saveJobsToStorage(this.jobs);
+    await saveJobToServer(job);
   }
 }

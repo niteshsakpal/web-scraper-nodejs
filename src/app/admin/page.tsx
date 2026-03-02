@@ -9,11 +9,11 @@ import {
   resetPrompt,
 } from "@/config/prompts";
 import {
-  getProfiles,
-  getActiveProfileId,
-  setActiveProfileId,
-  saveProfile,
-  deleteProfile,
+  fetchProfiles,
+  fetchActiveProfileId,
+  serverSetActiveProfileId,
+  serverSaveProfile,
+  serverDeleteProfile,
   createBlankProfile,
   type BrandingProfile,
 } from "@/config/brandingProfiles";
@@ -125,9 +125,10 @@ function BrandingTab() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const reload = useCallback(() => {
-    setProfiles(getProfiles());
-    setActiveId(getActiveProfileId());
+  const reload = useCallback(async () => {
+    const [p, id] = await Promise.all([fetchProfiles(), fetchActiveProfileId()]);
+    setProfiles(p);
+    setActiveId(id);
   }, []);
 
   useEffect(() => {
@@ -166,26 +167,26 @@ function BrandingTab() {
     reader.readAsDataURL(file);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editing) return;
     if (!editing.name.trim()) { alert("Profile name is required"); return; }
-    saveProfile(editing);
+    await serverSaveProfile(editing);
     setDirty(false);
     setSavedMsg(true);
     setTimeout(() => setSavedMsg(false), 2000);
-    reload();
+    await reload();
   };
 
-  const handleDelete = () => {
+  const handleDelete = async () => {
     if (!editing) return;
-    deleteProfile(editing.id);
+    await serverDeleteProfile(editing.id);
     setEditing(null);
     setConfirmDelete(false);
-    reload();
+    await reload();
   };
 
-  const handleActivate = (id: string) => {
-    setActiveProfileId(id);
+  const handleActivate = async (id: string) => {
+    await serverSetActiveProfileId(id);
     setActiveId(id);
   };
 
