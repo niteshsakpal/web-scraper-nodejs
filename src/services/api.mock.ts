@@ -93,18 +93,14 @@ async function callScrapeApi(url: string, identifier: string, crawlDelay: number
   }
 }
 
-/** Get next job ID from server */
-async function getNextJobIdFromServer(): Promise<number> {
+/** Get next job identifier from external API (or fallback counter) */
+async function getNextIdentifier(): Promise<string> {
   try {
-    const res = await fetch("/api/jobs", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({}),
-    });
+    const res = await fetch("/api/identifier");
     const data = await res.json();
-    return parseInt(data.id, 10);
+    return data.identifier ?? String(Date.now());
   } catch {
-    return Date.now(); // fallback
+    return String(Date.now()); // fallback
   }
 }
 
@@ -175,14 +171,14 @@ export class MockApiClient implements ApiClient {
   }
 
   async createJob({ url }: CreateJobInput): Promise<Job> {
-    const id = await getNextJobIdFromServer();
+    const id = await getNextIdentifier();
     const now = new Date().toISOString();
     const stages: Stage[] = STAGES.map((name) => ({
       name,
       status: "Pending" as const,
     }));
     const job: Job = {
-      id: String(id),
+      id,
       url,
       status: "Pending",
       currentStage: "URL Validation",
