@@ -164,20 +164,23 @@ export class MockApiClient implements ApiClient {
   }
 
   async getJob(id: string): Promise<Job> {
-    // Always try server first for fresh data
+    // Prefer local cache first — it has real-time updates from simulateProgress
+    const local = this.jobs.find((j) => j.id === id);
+    if (local) {
+      return JSON.parse(JSON.stringify(local));
+    }
+    // If not in local cache, try server (e.g. job from another session)
     try {
       const res = await fetch(`/api/jobs/${id}`, { cache: "no-store" });
       if (res.ok) {
         const data = await res.json();
         if (data.job) {
-          // Update local cache
-          const idx = this.jobs.findIndex((j) => j.id === id);
-          if (idx >= 0) this.jobs[idx] = data.job;
+          this.jobs.push(data.job);
           return JSON.parse(JSON.stringify(data.job));
         }
       }
-    } catch { /* fall through to local */ }
-    // Fallback to local cache
+    } catch { /* fall through */ }
+    // Last resort: load all from server
     await this.ensureLoaded();
     const job = this.jobs.find((j) => j.id === id);
     if (!job) throw new Error("Job not found");
@@ -244,6 +247,7 @@ export class MockApiClient implements ApiClient {
     valStage.details = STAGE_DETAILS["URL Validation"];
     job.currentStage = "URL Validation";
     job.status = "Running";
+    saveJobToServer(job); // persist Running state for cross-browser
 
     const result = await callValidationApi(job.url);
 
@@ -290,6 +294,7 @@ export class MockApiClient implements ApiClient {
     scrapeStage.startedAt = new Date().toISOString();
     scrapeStage.details = STAGE_DETAILS["Scraping"];
     job.currentStage = "Scraping";
+    saveJobToServer(job);
 
     const crawlDelay = valStage.validationResult?.crawlDelaySeconds ?? null;
     const scrapeResult = await callScrapeApi(job.url, job.id, crawlDelay);
@@ -326,6 +331,7 @@ export class MockApiClient implements ApiClient {
     sumStage.startedAt = new Date().toISOString();
     sumStage.details = STAGE_DETAILS["Summarization"];
     job.currentStage = "Summarization";
+    saveJobToServer(job);
 
     const summaryPrompt = getPrompt("summarization");
     const filesToSummarize = htmlFiles.length > 0 ? htmlFiles : [];
@@ -379,6 +385,7 @@ export class MockApiClient implements ApiClient {
     matStage.startedAt = new Date().toISOString();
     matStage.details = STAGE_DETAILS["Materiality"];
     job.currentStage = "Materiality";
+    saveJobToServer(job);
 
     const materialityPrompt = getPrompt("materiality");
     const matFileResults: SummarizationFileResult[] = filesToSummarize.map((f) => ({
@@ -425,6 +432,7 @@ export class MockApiClient implements ApiClient {
     appStage.startedAt = new Date().toISOString();
     appStage.details = STAGE_DETAILS["Applicability"];
     job.currentStage = "Applicability";
+    saveJobToServer(job);
 
     const applicabilityPrompt = getPrompt("applicability");
     const appFileResults: SummarizationFileResult[] = filesToSummarize.map((f) => ({
