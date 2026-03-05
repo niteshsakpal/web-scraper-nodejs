@@ -607,7 +607,7 @@ export default function JobDetailPage({
     const poll = async () => {
       const j = await fetchJob();
       if (mounted && j && j.status !== "Complete" && j.status !== "Failed") {
-        timer = setTimeout(poll, 800);
+        timer = setTimeout(poll, 500);
       }
     };
 
@@ -619,11 +619,25 @@ export default function JobDetailPage({
     };
   }, [fetchJob]);
 
-  /* Auto-select the currently running stage */
+  /* Auto-select the latest active stage (running or most recently completed) */
+  const autoSelectRef = useRef(true); // stop auto-selecting if user manually clicks
   useEffect(() => {
-    if (!job) return;
+    if (!job || !autoSelectRef.current) return;
+    // Find the running stage first
     const runningIdx = job.stages.findIndex((s) => s.status === "Running");
-    if (runningIdx !== -1) setSelectedStageIdx(runningIdx);
+    if (runningIdx !== -1) {
+      setSelectedStageIdx(runningIdx);
+      return;
+    }
+    // If no running stage, jump to the last completed stage (furthest progress)
+    let lastCompleted = -1;
+    for (let i = job.stages.length - 1; i >= 0; i--) {
+      if (job.stages[i].status === "Complete" || job.stages[i].status === "Failed") {
+        lastCompleted = i;
+        break;
+      }
+    }
+    if (lastCompleted !== -1) setSelectedStageIdx(lastCompleted);
   }, [job]);
 
   /* Live elapsed timer */
@@ -798,7 +812,7 @@ export default function JobDetailPage({
                 )}
 
                 <button
-                  onClick={() => setSelectedStageIdx(idx)}
+                  onClick={() => { autoSelectRef.current = false; setSelectedStageIdx(idx); }}
                   className={`relative z-10 flex items-start gap-3 w-full text-left px-5 py-3.5 border-l-[3px] transition-colors ${
                     isSelected
                       ? "bg-white/10"

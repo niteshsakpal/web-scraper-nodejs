@@ -332,6 +332,7 @@ export class MockApiClient implements ApiClient {
     sumStage.details = STAGE_DETAILS["Summarization"];
     job.currentStage = "Summarization";
     saveJobToServer(job);
+    await delay(1500); // ensure poll catches Running state + animation
 
     const summaryPrompt = getPrompt("summarization");
     const filesToSummarize = htmlFiles.length > 0 ? htmlFiles : [];
@@ -386,6 +387,7 @@ export class MockApiClient implements ApiClient {
     matStage.details = STAGE_DETAILS["Materiality"];
     job.currentStage = "Materiality";
     saveJobToServer(job);
+    await delay(1500); // ensure poll catches Running state + animation
 
     const materialityPrompt = getPrompt("materiality");
     const matFileResults: SummarizationFileResult[] = filesToSummarize.map((f) => ({
@@ -433,6 +435,7 @@ export class MockApiClient implements ApiClient {
     appStage.details = STAGE_DETAILS["Applicability"];
     job.currentStage = "Applicability";
     saveJobToServer(job);
+    await delay(1500); // ensure poll catches Running state + animation
 
     const applicabilityPrompt = getPrompt("applicability");
     const appFileResults: SummarizationFileResult[] = filesToSummarize.map((f) => ({
