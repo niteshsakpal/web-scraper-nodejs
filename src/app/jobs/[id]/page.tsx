@@ -507,7 +507,131 @@ function ReasoningCollapsible({ reasoning }: { reasoning: string }) {
   );
 }
 
-/* ── Single file summary with streaming ── */
+/* ── KPI extraction from summary HTML ── */
+interface ExtractedKPIs {
+  classification: string;
+  classificationColor: string;
+  jurisdiction: string;
+  jurisdictionIcon: string;
+  timeline: string;
+  confidence: number;
+  impactedEntities: string[];
+}
+
+function extractKPIs(html: string): ExtractedKPIs {
+  const text = html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").toLowerCase();
+
+  // Classification
+  let classification = "FOR REVIEW";
+  let classificationColor = "bg-blue-100 text-blue-700 border-blue-200";
+  if (text.includes("immediate action") || text.includes("urgent") || text.includes("mandatory")) {
+    classification = "IMMEDIATE ACTION";
+    classificationColor = "bg-red-100 text-red-700 border-red-200";
+  } else if (text.includes("for monitoring") || text.includes("monitor") || text.includes("watch")) {
+    classification = "FOR MONITORING";
+    classificationColor = "bg-amber-100 text-amber-700 border-amber-200";
+  } else if (text.includes("informational") || text.includes("no action") || text.includes("awareness")) {
+    classification = "INFORMATIONAL";
+    classificationColor = "bg-green-100 text-green-700 border-green-200";
+  }
+
+  // Jurisdiction
+  const jurisdictionMap: Record<string, [string, string]> = {
+    "united kingdom": ["UK", "\uD83C\uDDEC\uD83C\uDDE7"],
+    "uk": ["UK", "\uD83C\uDDEC\uD83C\uDDE7"],
+    "fca": ["UK (FCA)", "\uD83C\uDDEC\uD83C\uDDE7"],
+    "bank of england": ["UK (BoE)", "\uD83C\uDDEC\uD83C\uDDE7"],
+    "european union": ["EU", "\uD83C\uDDEA\uD83C\uDDFA"],
+    "eu": ["EU", "\uD83C\uDDEA\uD83C\uDDFA"],
+    "united states": ["US", "\uD83C\uDDFA\uD83C\uDDF8"],
+    "sec": ["US (SEC)", "\uD83C\uDDFA\uD83C\uDDF8"],
+    "india": ["India", "\uD83C\uDDEE\uD83C\uDDF3"],
+    "rbi": ["India (RBI)", "\uD83C\uDDEE\uD83C\uDDF3"],
+    "china": ["China", "\uD83C\uDDE8\uD83C\uDDF3"],
+    "belgium": ["Belgium", "\uD83C\uDDE7\uD83C\uDDEA"],
+    "singapore": ["Singapore", "\uD83C\uDDF8\uD83C\uDDEC"],
+    "hong kong": ["Hong Kong", "\uD83C\uDDED\uD83C\uDDF0"],
+  };
+  let jurisdiction = "Global";
+  let jurisdictionIcon = "\uD83C\uDF10";
+  for (const [key, [name, icon]] of Object.entries(jurisdictionMap)) {
+    if (text.includes(key)) {
+      jurisdiction = name;
+      jurisdictionIcon = icon;
+      break;
+    }
+  }
+
+  // Timeline — look for dates
+  const datePatterns = [
+    /(?:effective|deadline|compliance|implement|enforce|by|from|until|before)[^.]*?(\d{1,2}\s+(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4})/i,
+    /(?:jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\s+\d{4}/i,
+    /\d{4}/,
+  ];
+  let timeline = "Not specified";
+  const rawText = html.replace(/<[^>]+>/g, " ");
+  for (const pattern of datePatterns) {
+    const match = rawText.match(pattern);
+    if (match) {
+      timeline = (match[1] || match[0]).trim();
+      break;
+    }
+  }
+
+  // Confidence — heuristic based on language strength
+  let confidence = 85;
+  if (text.includes("high confidence") || text.includes("clearly") || text.includes("definitive")) confidence = 95;
+  else if (text.includes("likely") || text.includes("suggests") || text.includes("appears")) confidence = 80;
+  else if (text.includes("uncertain") || text.includes("unclear") || text.includes("limited")) confidence = 65;
+
+  // Impacted entities
+  const entityKeywords = [
+    "banks", "insurers", "investment firms", "asset managers", "credit institutions",
+    "payment providers", "pension funds", "brokers", "fintech", "consumers",
+    "financial institutions", "regulated firms", "market participants",
+  ];
+  const impactedEntities: string[] = [];
+  for (const entity of entityKeywords) {
+    if (text.includes(entity) && !impactedEntities.includes(entity)) {
+      impactedEntities.push(entity.charAt(0).toUpperCase() + entity.slice(1));
+    }
+  }
+  if (impactedEntities.length === 0) impactedEntities.push("Regulated entities");
+
+  return { classification, classificationColor, jurisdiction, jurisdictionIcon, timeline, confidence, impactedEntities };
+}
+
+/* ── Confidence gauge ring ── */
+function ConfidenceGauge({ value }: { value: number }) {
+  const radius = 36;
+  const stroke = 6;
+  const normalizedRadius = radius - stroke / 2;
+  const circumference = normalizedRadius * 2 * Math.PI;
+  const strokeDashoffset = circumference - (value / 100) * circumference;
+  const color = value >= 90 ? "#22c55e" : value >= 75 ? "#3b82f6" : value >= 60 ? "#f59e0b" : "#ef4444";
+
+  return (
+    <div className="relative inline-flex items-center justify-center">
+      <svg height={radius * 2} width={radius * 2} className="-rotate-90">
+        <circle stroke="#e5e7eb" fill="transparent" strokeWidth={stroke} r={normalizedRadius} cx={radius} cy={radius} />
+        <circle
+          stroke={color}
+          fill="transparent"
+          strokeWidth={stroke}
+          strokeDasharray={`${circumference} ${circumference}`}
+          style={{ strokeDashoffset, transition: "stroke-dashoffset 0.8s ease-in-out" }}
+          strokeLinecap="round"
+          r={normalizedRadius}
+          cx={radius}
+          cy={radius}
+        />
+      </svg>
+      <span className="absolute text-lg font-bold text-gray-900">{value}%</span>
+    </div>
+  );
+}
+
+/* ── Single file summary — Dashboard + Insights Sidebar (Option C) ── */
 function FileSummaryContent({ file }: { file: SummarizationFileResult }) {
   const { displayed, done } = useStreamingHtml(file.summaryHtml ?? "", file.status === "success");
 
@@ -531,29 +655,91 @@ function FileSummaryContent({ file }: { file: SummarizationFileResult }) {
 
   if (file.status === "failure") {
     return (
-      <div className="px-5 py-4 text-sm text-red-600 bg-red-50 rounded-lg">
+      <div className="px-5 py-4 text-sm text-red-600 bg-red-50 rounded-lg border border-red-200">
         {file.error ?? "Summarization failed"}
       </div>
     );
   }
 
   if (file.status === "success" && file.summaryHtml) {
-    return (
-      <div>
-        {/* Reasoning on top */}
-        {file.reasoning && (
-          <ReasoningCollapsible reasoning={sanitizeHtml(file.reasoning)} />
-        )}
+    const kpis = extractKPIs(file.summaryHtml);
 
-        {/* Streamed summary output */}
-        <div
-          className="prose prose-sm max-w-none break-words overflow-x-auto prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-li:text-gray-700 prose-strong:text-gray-900"
-          style={{ contain: 'layout style' }}
-          dangerouslySetInnerHTML={{ __html: sanitizeHtml(displayed) }}
-        />
-        {!done && (
-          <span className="inline-block w-2 h-4 bg-gray-800 animate-pulse ml-0.5 align-text-bottom" />
-        )}
+    return (
+      <div className="flex gap-6" style={{ minHeight: 0 }}>
+        {/* ── LEFT: Insights Sidebar ── */}
+        <div className="w-64 shrink-0 space-y-4">
+          {/* Classification */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-2">CLASSIFICATION</div>
+            <span className={`inline-block rounded-md px-3 py-1.5 text-xs font-bold border ${kpis.classificationColor}`}>
+              {kpis.classification}
+            </span>
+          </div>
+
+          {/* Jurisdiction */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-2">JURISDICTION</div>
+            <div className="flex items-center gap-2">
+              <span className="text-xl">{kpis.jurisdictionIcon}</span>
+              <span className="text-sm font-semibold text-gray-900">{kpis.jurisdiction}</span>
+            </div>
+          </div>
+
+          {/* Timeline */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-2">TIMELINE</div>
+            <div className="flex items-center gap-2">
+              <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
+              </svg>
+              <span className="text-sm font-semibold text-gray-900">{kpis.timeline}</span>
+            </div>
+          </div>
+
+          {/* AI Confidence */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-3">AI CONFIDENCE</div>
+            <div className="flex justify-center">
+              <ConfidenceGauge value={kpis.confidence} />
+            </div>
+          </div>
+
+          {/* Impacted Entities */}
+          <div className="rounded-xl border border-gray-200 bg-white p-4">
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-2">IMPACTED ENTITIES</div>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="text-lg font-bold text-gray-900">{kpis.impactedEntities.length}</span>
+              <span className="text-xs text-gray-500">identified</span>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {kpis.impactedEntities.map((entity) => (
+                <span key={entity} className="inline-block rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-600 uppercase">
+                  {entity}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* ── RIGHT: Content Panel ── */}
+        <div className="flex-1 min-w-0 space-y-4">
+          {/* Reasoning toast */}
+          {file.reasoning && (
+            <ReasoningCollapsible reasoning={sanitizeHtml(file.reasoning)} />
+          )}
+
+          {/* Summary prose */}
+          <div className="rounded-xl border border-gray-200 bg-white p-6">
+            <div
+              className="prose prose-sm max-w-none break-words overflow-x-auto prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-li:text-gray-700 prose-strong:text-gray-900"
+              style={{ contain: 'layout style' }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(displayed) }}
+            />
+            {!done && (
+              <span className="inline-block w-2 h-4 bg-gray-800 animate-pulse ml-0.5 align-text-bottom" />
+            )}
+          </div>
+        </div>
       </div>
     );
   }
