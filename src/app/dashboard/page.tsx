@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { getApiClient } from "@/services/api.client";
 import type { Job } from "@/types/job";
 import type { DashboardStats } from "@/services/api.types";
@@ -13,16 +13,25 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  const loadData = useCallback(async () => {
+    setLoading(true);
     const api = getApiClient();
-    Promise.all([api.listJobs(), api.getDashboardStats()]).then(
-      ([jobList, dashStats]) => {
-        setJobs(jobList);
-        setStats(dashStats);
-        setLoading(false);
-      }
-    );
+    const [jobList, dashStats] = await Promise.all([api.listJobs(), api.getDashboardStats()]);
+    setJobs(jobList);
+    setStats(dashStats);
+    setLoading(false);
   }, []);
+
+  // Re-fetch every time the component mounts (including client-side navigation)
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Also poll every 5s so running jobs update in real-time
+  useEffect(() => {
+    const iv = setInterval(loadData, 5000);
+    return () => clearInterval(iv);
+  }, [loadData]);
 
   if (loading) return <Loader text="Loading dashboard..." />;
 

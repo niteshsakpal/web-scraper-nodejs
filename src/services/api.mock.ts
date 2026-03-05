@@ -107,7 +107,7 @@ async function getNextIdentifier(): Promise<string> {
 /** Load jobs from server */
 async function loadJobsFromServer(): Promise<Job[]> {
   try {
-    const res = await fetch("/api/jobs");
+    const res = await fetch("/api/jobs", { cache: "no-store" });
     const data = await res.json();
     return data.jobs ?? [];
   } catch {
@@ -164,6 +164,20 @@ export class MockApiClient implements ApiClient {
   }
 
   async getJob(id: string): Promise<Job> {
+    // Always try server first for fresh data
+    try {
+      const res = await fetch(`/api/jobs/${id}`, { cache: "no-store" });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.job) {
+          // Update local cache
+          const idx = this.jobs.findIndex((j) => j.id === id);
+          if (idx >= 0) this.jobs[idx] = data.job;
+          return JSON.parse(JSON.stringify(data.job));
+        }
+      }
+    } catch { /* fall through to local */ }
+    // Fallback to local cache
     await this.ensureLoaded();
     const job = this.jobs.find((j) => j.id === id);
     if (!job) throw new Error("Job not found");
