@@ -1,12 +1,47 @@
 "use client";
 
-import React, { useEffect, useState, useCallback, use, useRef } from "react";
+import React, { useEffect, useState, useCallback, use, useRef, Component, type ErrorInfo, type ReactNode } from "react";
 import Link from "next/link";
 import { getApiClient } from "@/services/api.client";
 import type { Job, Stage, ValidationResult, ScrapeResult, SummarizationResult, SummarizationFileResult } from "@/types/job";
 import JobStatusBadge from "@/components/jobs/JobStatusBadge";
 import Loader from "@/components/common/Loader";
 import branding from "@/config/branding";
+
+/* ── Strip <style> tags from AI-generated HTML to prevent layout leaks ── */
+function sanitizeHtml(html: string): string {
+  return html.replace(/<style[^>]*>[\s\S]*?<\/style>/gi, "");
+}
+
+/* ── Error boundary to catch rendering crashes from AI HTML ── */
+class StageErrorBoundary extends Component<{ children: ReactNode; stageName: string }, { hasError: boolean }> {
+  constructor(props: { children: ReactNode; stageName: string }) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error(`[${this.props.stageName}] Render error:`, error, info);
+  }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="rounded-xl border border-red-200 bg-red-50 p-6 text-center">
+          <p className="text-sm text-red-600">Something went wrong rendering this stage content.</p>
+          <button
+            className="mt-3 text-xs text-blue-600 hover:underline"
+            onClick={() => this.setState({ hasError: false })}
+          >
+            Try again
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 /* ── mock content per stage (simulates real output) ── */
 const STAGE_CONTENT: Record<string, { title: string; sections: { heading: string; lines: string[] }[] }> = {
@@ -350,7 +385,7 @@ function ScrapeResultCard({
             <div className="p-5 overflow-auto" style={{ maxHeight: "calc(100vh - 420px)" }}>
               <div
                 className="prose prose-sm max-w-none break-words overflow-x-auto prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-li:text-gray-700 prose-strong:text-gray-900"
-                dangerouslySetInnerHTML={{ __html: currentContent.html }}
+                dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentContent.html) }}
               />
             </div>
           </div>
@@ -379,7 +414,7 @@ function ScrapeResultCard({
               ) : (
                 <div
                   className="prose prose-sm max-w-none break-words overflow-x-auto prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-li:text-gray-700 prose-strong:text-gray-900"
-                  dangerouslySetInnerHTML={{ __html: currentTranslation.html }}
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentTranslation.html) }}
                 />
               )}
             </div>
@@ -391,7 +426,7 @@ function ScrapeResultCard({
           <div className="p-6 overflow-auto" style={{ maxHeight: "calc(100vh - 380px)" }}>
             <div
               className="prose prose-sm max-w-none break-words overflow-x-auto prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-li:text-gray-700 prose-strong:text-gray-900"
-              dangerouslySetInnerHTML={{ __html: currentContent.html }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(currentContent.html) }}
             />
           </div>
         </div>
@@ -507,13 +542,14 @@ function FileSummaryContent({ file }: { file: SummarizationFileResult }) {
       <div>
         {/* Reasoning on top */}
         {file.reasoning && (
-          <ReasoningCollapsible reasoning={file.reasoning} />
+          <ReasoningCollapsible reasoning={sanitizeHtml(file.reasoning)} />
         )}
 
         {/* Streamed summary output */}
         <div
           className="prose prose-sm max-w-none break-words overflow-x-auto prose-headings:text-gray-900 prose-p:text-gray-700 prose-a:text-blue-600 prose-li:text-gray-700 prose-strong:text-gray-900"
-          dangerouslySetInnerHTML={{ __html: displayed }}
+          style={{ contain: 'layout style' }}
+          dangerouslySetInnerHTML={{ __html: sanitizeHtml(displayed) }}
         />
         {!done && (
           <span className="inline-block w-2 h-4 bg-gray-800 animate-pulse ml-0.5 align-text-bottom" />
@@ -822,8 +858,8 @@ export default function JobDetailPage({
           })}
         </div>
 
-        {/* RIGHT: Content Panel */}
-        <div className="flex-1 bg-gray-50 p-8 min-w-0 overflow-y-auto overflow-x-hidden">
+          {/* RIGHT: Content Panel */}
+          <div className="flex-1 bg-gray-50 p-8 overflow-y-auto overflow-x-hidden" style={{ minWidth: 0, maxWidth: 'calc(100vw - 288px)' }}>
           <div key={selectedStageIdx} className="stage-content-enter">
           {/* Content header */}
           <div className="flex items-center justify-between mb-6">
@@ -910,11 +946,17 @@ export default function JobDetailPage({
           ) : selectedStage.name === "Scraping" && selectedStage.scrapeResult ? (
             <ScrapeResultCard result={selectedStage.scrapeResult} jobId={job.id} />
           ) : selectedStage.name === "Summarization" && selectedStage.summarizationResult ? (
-            <SummarizationResultCard result={selectedStage.summarizationResult} />
+            <StageErrorBoundary stageName="Summarization">
+              <SummarizationResultCard result={selectedStage.summarizationResult} />
+            </StageErrorBoundary>
           ) : selectedStage.name === "Applicability" && selectedStage.applicabilityResult ? (
-            <SummarizationResultCard result={selectedStage.applicabilityResult} />
+            <StageErrorBoundary stageName="Applicability">
+              <SummarizationResultCard result={selectedStage.applicabilityResult} />
+            </StageErrorBoundary>
           ) : selectedStage.name === "Materiality" && selectedStage.materialityResult ? (
-            <SummarizationResultCard result={selectedStage.materialityResult} />
+            <StageErrorBoundary stageName="Materiality">
+              <SummarizationResultCard result={selectedStage.materialityResult} />
+            </StageErrorBoundary>
           ) : selectedStage.status === "Failed" ? (
             <div className="rounded-xl border border-red-200 bg-red-50 p-6">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-red-400 mb-3">Error</h3>
