@@ -13,8 +13,8 @@ export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
+  const loadData = useCallback(async (showLoader = false) => {
+    if (showLoader) setLoading(true);
     const api = getApiClient();
     const [jobList, dashStats] = await Promise.all([api.listJobs(), api.getDashboardStats()]);
     setJobs(jobList);
@@ -24,12 +24,12 @@ export default function DashboardPage() {
 
   // Re-fetch every time the component mounts (including client-side navigation)
   useEffect(() => {
-    loadData();
+    loadData(true);
   }, [loadData]);
 
-  // Also poll every 5s so running jobs update in real-time
+  // Also poll every 3s so running jobs update in real-time (no loader flash)
   useEffect(() => {
-    const iv = setInterval(loadData, 5000);
+    const iv = setInterval(() => loadData(false), 3000);
     return () => clearInterval(iv);
   }, [loadData]);
 
