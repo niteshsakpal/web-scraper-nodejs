@@ -37,12 +37,14 @@ const g = globalThis as unknown as {
   __rhs_active_profile_id?: string;
   __rhs_jobs?: Job[];
   __rhs_next_job_id?: number;
+  __rhs_prompts?: Record<string, string>;
 };
 
 if (!g.__rhs_branding_profiles) g.__rhs_branding_profiles = [DEFAULT_PROFILE];
 if (!g.__rhs_active_profile_id) g.__rhs_active_profile_id = DEFAULT_PROFILE.id;
 if (!g.__rhs_jobs) g.__rhs_jobs = [];
 if (!g.__rhs_next_job_id) g.__rhs_next_job_id = 100000;
+if (!g.__rhs_prompts) g.__rhs_prompts = {};
 
 /* ── Branding helpers ── */
 
@@ -114,4 +116,37 @@ export function getNextJobId(): number {
   const id = g.__rhs_next_job_id!;
   g.__rhs_next_job_id = id + 1;
   return id;
+}
+
+export function peekNextJobId(): number {
+  return g.__rhs_next_job_id!;
+}
+
+/* ── Prompt helpers ── */
+
+export function getServerPrompt(key: string): string | undefined {
+  return g.__rhs_prompts![key];
+}
+
+export function setServerPrompt(key: string, value: string) {
+  g.__rhs_prompts![key] = value;
+}
+
+export function getAllServerPrompts(): Record<string, string> {
+  return { ...g.__rhs_prompts! };
+}
+
+export function deleteServerPrompt(key: string) {
+  delete g.__rhs_prompts![key];
+}
+
+/* ── Metadata helpers ── */
+
+export function getMetadata() {
+  return {
+    lastJobId: g.__rhs_next_job_id! - 1,
+    nextJobId: g.__rhs_next_job_id!,
+    totalJobs: g.__rhs_jobs!.length,
+    totalProfiles: g.__rhs_branding_profiles!.length,
+  };
 }

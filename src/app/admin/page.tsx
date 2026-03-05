@@ -7,6 +7,7 @@ import {
   getPrompt,
   savePrompt,
   resetPrompt,
+  loadPromptsFromServer,
 } from "@/config/prompts";
 import {
   fetchProfiles,
@@ -27,11 +28,13 @@ function AIPromptsTab() {
   const [saved, setSaved] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    const loaded: Record<string, string> = {};
+    // Load cached values immediately, then hydrate from server
+    const cached: Record<string, string> = {};
     for (const cfg of PROMPT_CONFIGS) {
-      loaded[cfg.key] = getPrompt(cfg.key);
+      cached[cfg.key] = getPrompt(cfg.key);
     }
-    setValues(loaded);
+    setValues(cached);
+    loadPromptsFromServer().then((serverVals) => setValues(serverVals));
   }, []);
 
   const handleChange = useCallback((key: string, val: string) => {
@@ -41,8 +44,8 @@ function AIPromptsTab() {
   }, []);
 
   const handleSave = useCallback(
-    (key: string) => {
-      savePrompt(key, values[key] ?? "");
+    async (key: string) => {
+      await savePrompt(key, values[key] ?? "");
       setDirty((prev) => ({ ...prev, [key]: false }));
       setSaved((prev) => ({ ...prev, [key]: true }));
       setTimeout(() => setSaved((prev) => ({ ...prev, [key]: false })), 2000);
@@ -50,8 +53,8 @@ function AIPromptsTab() {
     [values],
   );
 
-  const handleReset = useCallback((key: string) => {
-    resetPrompt(key);
+  const handleReset = useCallback(async (key: string) => {
+    await resetPrompt(key);
     const def = PROMPT_CONFIGS.find((p) => p.key === key)?.defaultValue ?? "";
     setValues((prev) => ({ ...prev, [key]: def }));
     setDirty((prev) => ({ ...prev, [key]: false }));
@@ -411,16 +414,131 @@ function BrandingTab() {
 }
 
 /* ============================================================
+   Metadata Tab
+   ============================================================ */
+interface MetadataInfo {
+  lastJobId: number;
+  nextJobId: number;
+  totalJobs: number;
+  totalProfiles: number;
+}
+
+function MetadataTab() {
+  const [meta, setMeta] = useState<MetadataInfo | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchMeta = useCallback(async () => {
+    try {
+      const res = await fetch("/api/metadata");
+      const data = await res.json();
+      setMeta(data);
+    } catch { /* ignore */ }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchMeta();
+  }, [fetchMeta]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12 text-gray-400 text-sm">
+        Loading metadata...
+      </div>
+    );
+  }
+
+  if (!meta) {
+    return (
+      <div className="text-sm text-red-500 py-8 text-center">
+        Failed to load metadata.
+      </div>
+    );
+  }
+
+  const cards = [
+    {
+      label: "Last Generated Identifier",
+      value: meta.lastJobId < 100000 ? "None yet" : String(meta.lastJobId),
+      description: "The most recent job identifier that was assigned when a user clicked Scrape & Analyze.",
+      icon: (
+        <svg className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 8.25h15m-16.5 7.5h15m-1.8-13.5l-3.9 19.5m-2.1-19.5l-3.9 19.5" />
+        </svg>
+      ),
+    },
+    {
+      label: "Next Identifier",
+      value: String(meta.nextJobId),
+      description: "The identifier that will be assigned to the next job.",
+      icon: (
+        <svg className="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
+        </svg>
+      ),
+    },
+    {
+      label: "Total Jobs",
+      value: String(meta.totalJobs),
+      description: "Total number of scraping jobs stored on the server.",
+      icon: (
+        <svg className="h-6 w-6 text-violet-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M20.25 14.15v4.25c0 1.094-.787 2.036-1.872 2.18-2.087.277-4.216.42-6.378.42s-4.291-.143-6.378-.42c-1.085-.144-1.872-1.086-1.872-2.18v-4.25m16.5 0a2.18 2.18 0 00.75-1.661V8.706c0-1.081-.768-2.015-1.837-2.175a48.114 48.114 0 00-3.413-.387m4.5 8.006c-.194.165-.42.295-.673.38A23.978 23.978 0 0112 15.75c-2.648 0-5.195-.429-7.577-1.22a2.016 2.016 0 01-.673-.38m0 0A2.18 2.18 0 013 12.489V8.706c0-1.081.768-2.015 1.837-2.175a48.111 48.111 0 013.413-.387m7.5 0V5.25A2.25 2.25 0 0013.5 3h-3a2.25 2.25 0 00-2.25 2.25v.894m7.5 0a48.667 48.667 0 00-7.5 0" />
+        </svg>
+      ),
+    },
+    {
+      label: "Branding Profiles",
+      value: String(meta.totalProfiles),
+      description: "Number of branding profiles saved on the server.",
+      icon: (
+        <svg className="h-6 w-6 text-amber-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M9.53 16.122a3 3 0 00-5.78 1.128 2.25 2.25 0 01-2.4 2.245 4.5 4.5 0 008.4-2.245c0-.399-.078-.78-.22-1.128zm0 0a15.998 15.998 0 003.388-1.62m-5.043-.025a15.994 15.994 0 011.622-3.395m3.42 3.42a15.995 15.995 0 004.764-4.648l3.876-5.814a1.151 1.151 0 00-1.597-1.597L14.146 6.32a15.996 15.996 0 00-4.649 4.763m3.42 3.42a6.776 6.776 0 00-3.42-3.42" />
+        </svg>
+      ),
+    },
+  ];
+
+  return (
+    <div className="space-y-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {cards.map((card) => (
+          <div key={card.label} className="bg-white border border-gray-200 rounded-xl p-5">
+            <div className="flex items-center gap-3 mb-3">
+              <div className="p-2 rounded-lg bg-gray-50">{card.icon}</div>
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-gray-400">{card.label}</span>
+            </div>
+            <div className="text-2xl font-bold text-gray-900 mb-1">{card.value}</div>
+            <p className="text-xs text-gray-500">{card.description}</p>
+          </div>
+        ))}
+      </div>
+      <div className="flex justify-end">
+        <button
+          onClick={() => { setLoading(true); fetchMeta(); }}
+          className="px-4 py-2 text-sm font-medium text-gray-600 hover:text-gray-800 border border-gray-300 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer flex items-center gap-2"
+        >
+          <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M16.023 9.348h4.992v-.001M2.985 19.644v-4.992m0 0h4.992m-4.993 0l3.181 3.183a8.25 8.25 0 0013.803-3.7M4.031 9.865a8.25 8.25 0 0113.803-3.7l3.181 3.182" />
+          </svg>
+          Refresh
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
    Main Admin Page with Tabs
    ============================================================ */
 export default function AdminPage() {
-  const [tab, setTab] = useState<"prompts" | "branding">("prompts");
+  const [tab, setTab] = useState<"prompts" | "branding" | "metadata">("prompts");
 
   return (
     <>
       <header className="px-8 pt-6 pb-0 bg-white">
         <h1 className="text-2xl font-bold text-gray-900">Admin Panel</h1>
-        <p className="text-sm text-gray-500 mt-1">Manage AI prompts and branding configuration</p>
+        <p className="text-sm text-gray-500 mt-1">Manage AI prompts, branding, and system metadata</p>
         <div className="flex gap-0 mt-4 border-b border-gray-200">
           <button
             onClick={() => setTab("prompts")}
@@ -438,10 +556,18 @@ export default function AdminPage() {
           >
             Branding
           </button>
+          <button
+            onClick={() => setTab("metadata")}
+            className={`px-5 py-2.5 text-sm font-semibold border-b-2 -mb-px transition-colors cursor-pointer ${
+              tab === "metadata" ? "border-[#FAFD86] text-gray-900" : "border-transparent text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            Metadata
+          </button>
         </div>
       </header>
       <div className="p-6">
-        {tab === "prompts" ? <AIPromptsTab /> : <BrandingTab />}
+        {tab === "prompts" ? <AIPromptsTab /> : tab === "branding" ? <BrandingTab /> : <MetadataTab />}
       </div>
     </>
   );

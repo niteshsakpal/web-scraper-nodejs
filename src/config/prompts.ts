@@ -188,27 +188,75 @@ export const PROMPT_CONFIGS: PromptConfig[] = [
 ];
 
 /* ------------------------------------------------------------------ */
-/*  localStorage helpers                                               */
+/*  Server-backed prompt helpers                                       */
 /* ------------------------------------------------------------------ */
 
+function getDefault(key: string): string {
+  return PROMPT_CONFIGS.find((p) => p.key === key)?.defaultValue ?? "";
+}
+
+/** Local cache so we don't flash defaults while server loads */
 const STORAGE_PREFIX = "rhs_prompt_";
 
+/**
+ * Get a prompt value. Returns cached/default synchronously.
+ * Call loadPromptsFromServer() on mount to hydrate from server.
+ */
 export function getPrompt(key: string): string {
   if (typeof window === "undefined") return getDefault(key);
   const stored = localStorage.getItem(`${STORAGE_PREFIX}${key}`);
   return stored ?? getDefault(key);
 }
 
-export function savePrompt(key: string, value: string): void {
-  if (typeof window === "undefined") return;
-  localStorage.setItem(`${STORAGE_PREFIX}${key}`, value);
+/** Save prompt to both server and localStorage cache */
+export async function savePrompt(key: string, value: string): Promise<void> {
+  if (typeof window !== "undefined") {
+    localStorage.setItem(`${STORAGE_PREFIX}${key}`, value);
+  }
+  try {
+    await fetch("/api/prompts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, value }),
+    });
+  } catch { /* ignore */ }
 }
 
-export function resetPrompt(key: string): void {
-  if (typeof window === "undefined") return;
-  localStorage.removeItem(`${STORAGE_PREFIX}${key}`);
+/** Reset prompt to default on both server and localStorage */
+export async function resetPrompt(key: string): Promise<void> {
+  if (typeof window !== "undefined") {
+    localStorage.removeItem(`${STORAGE_PREFIX}${key}`);
+  }
+  try {
+    await fetch("/api/prompts", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, delete: true }),
+    });
+  } catch { /* ignore */ }
 }
 
-function getDefault(key: string): string {
-  return PROMPT_CONFIGS.find((p) => p.key === key)?.defaultValue ?? "";
+/** Load all prompts from server and update localStorage cache */
+export async function loadPromptsFromServer(): Promise<Record<string, string>> {
+  const result: Record<string, string> = {};
+  try {
+    const res = await fetch("/api/prompts");
+    const data = await res.json();
+    const serverPrompts: Record<string, string> = data.prompts ?? {};
+    for (const cfg of PROMPT_CONFIGS) {
+      const val = serverPrompts[cfg.key] ?? cfg.defaultValue;
+      result[cfg.key] = val;
+      if (typeof window !== "undefined") {
+        if (serverPrompts[cfg.key]) {
+          localStorage.setItem(`${STORAGE_PREFIX}${cfg.key}`, val);
+        }
+      }
+    }
+  } catch {
+    // Fall back to localStorage / defaults
+    for (const cfg of PROMPT_CONFIGS) {
+      result[cfg.key] = getPrompt(cfg.key);
+    }
+  }
+  return result;
 }
