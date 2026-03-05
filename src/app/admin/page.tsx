@@ -417,8 +417,8 @@ function BrandingTab() {
    Metadata Tab
    ============================================================ */
 interface MetadataInfo {
-  lastJobId: number;
-  nextJobId: number;
+  lastIdentifier: string;
+  nextLocalId: number;
   totalJobs: number;
   totalProfiles: number;
 }
@@ -459,7 +459,7 @@ function MetadataTab() {
   const cards = [
     {
       label: "Last Generated Identifier",
-      value: meta.lastJobId < 100000 ? "None yet" : String(meta.lastJobId),
+      value: meta.lastIdentifier || "None yet",
       description: "The most recent job identifier that was assigned when a user clicked Scrape & Analyze.",
       icon: (
         <svg className="h-6 w-6 text-blue-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
@@ -468,9 +468,9 @@ function MetadataTab() {
       ),
     },
     {
-      label: "Next Identifier",
-      value: String(meta.nextJobId),
-      description: "The identifier that will be assigned to the next job.",
+      label: "Next Local ID (Fallback)",
+      value: String(meta.nextLocalId),
+      description: "Fallback counter used when external identifier API is unavailable.",
       icon: (
         <svg className="h-6 w-6 text-green-500" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
