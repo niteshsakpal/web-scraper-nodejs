@@ -473,8 +473,70 @@ function useStreamingHtml(html: string, enabled: boolean) {
 }
 
 /* ── Collapsible reasoning block ── */
+/** Convert plain-text reasoning into formatted HTML */
+function formatReasoning(raw: string): string {
+  // If it already contains HTML block tags, return as-is
+  if (/<(h[1-6]|ul|ol|li|p|div|table)\b/i.test(raw)) return raw;
+
+  const lines = raw.split(/\n/);
+  const out: string[] = [];
+  let inList = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (inList) { out.push("</ul>"); inList = false; }
+      continue;
+    }
+
+    // Numbered heading-style lines like "1. What is this event?"
+    const numberedHeading = trimmed.match(/^(\d+)\.\s+(.+?\?)\s*$/);
+    if (numberedHeading) {
+      if (inList) { out.push("</ul>"); inList = false; }
+      out.push(`<h4 class="font-semibold text-gray-900 mt-4 mb-1">${trimmed}</h4>`);
+      continue;
+    }
+
+    // Section labels like "Key Metadata:", "Executive Summary:", "Scope Analysis:"
+    const sectionLabel = trimmed.match(/^([A-Z][A-Za-z\s]+):\s*$/);
+    if (sectionLabel) {
+      if (inList) { out.push("</ul>"); inList = false; }
+      out.push(`<h4 class="font-semibold text-gray-900 mt-4 mb-1">${sectionLabel[1]}</h4>`);
+      continue;
+    }
+
+    // Bullet lines (- item)
+    if (/^[-•]\s+/.test(trimmed)) {
+      if (!inList) { out.push('<ul class="list-disc pl-5 my-1 space-y-1">'); inList = true; }
+      const content = trimmed.replace(/^[-•]\s+/, "");
+      out.push(`<li>${boldify(content)}</li>`);
+      continue;
+    }
+
+    // Numbered list items like "1. The non-prioritization..."
+    const numberedItem = trimmed.match(/^(\d+)\.\s+(.+)$/);
+    if (numberedItem && !numberedHeading) {
+      if (inList) { out.push("</ul>"); inList = false; }
+      out.push(`<p class="my-1">${boldify(trimmed)}</p>`);
+      continue;
+    }
+
+    // Regular paragraph
+    if (inList) { out.push("</ul>"); inList = false; }
+    out.push(`<p class="my-1">${boldify(trimmed)}</p>`);
+  }
+  if (inList) out.push("</ul>");
+  return out.join("\n");
+}
+
+/** Wrap **bold** markdown in <strong> tags */
+function boldify(text: string): string {
+  return text.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+}
+
 function ReasoningCollapsible({ reasoning }: { reasoning: string }) {
   const [open, setOpen] = useState(false);
+  const formatted = formatReasoning(reasoning);
   return (
     <div className="mb-5 rounded-lg border border-amber-200 bg-amber-50 overflow-hidden">
       <button
@@ -499,7 +561,7 @@ function ReasoningCollapsible({ reasoning }: { reasoning: string }) {
         <div className="border-t border-amber-200 px-4 py-4">
           <div
             className="prose prose-sm max-w-none break-words overflow-x-auto prose-headings:text-gray-900 prose-p:text-gray-700 prose-li:text-gray-700 prose-strong:text-gray-900"
-            dangerouslySetInnerHTML={{ __html: reasoning }}
+            dangerouslySetInnerHTML={{ __html: formatted }}
           />
         </div>
       )}
