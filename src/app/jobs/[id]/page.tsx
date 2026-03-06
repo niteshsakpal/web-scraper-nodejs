@@ -1009,9 +1009,9 @@ export default function JobDetailPage({
       </div>
 
       {/* ── Split Panel: vertical steps left + content right ── */}
-      <div className="flex flex-1" style={{ height: 'calc(100vh - 140px)', minHeight: 0 }}>
+      <div className="flex flex-1" style={{ minHeight: 'calc(100vh - 140px)' }}>
         {/* LEFT: Steps Panel */}
-        <div className="w-72 shrink-0 border-r border-white/10 overflow-y-auto sticky top-0 self-start" style={{ background: '#002535', maxHeight: 'calc(100vh - 140px)' }}>
+        <div className="w-72 shrink-0 border-r border-white/10 overflow-y-auto flex flex-col" style={{ background: '#002535', minHeight: '100%' }}>
           <div className="px-5 py-3 border-b border-white/10">
             <div className="text-xs font-semibold uppercase tracking-wide text-white/40">
               Processing Steps
