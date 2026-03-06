@@ -752,17 +752,6 @@ function FileSummaryContent({ file }: { file: SummarizationFileResult }) {
             </div>
           </div>
 
-          {/* Timeline */}
-          <div className="rounded-xl border border-gray-200 bg-white p-4">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-2">TIMELINE</div>
-            <div className="flex items-center gap-2">
-              <svg className="h-4 w-4 text-gray-400" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-              </svg>
-              <span className="text-sm font-semibold text-gray-900">{kpis.timeline}</span>
-            </div>
-          </div>
-
           {/* AI Confidence */}
           <div className="rounded-xl border border-gray-200 bg-white p-4">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-400 mb-3">AI CONFIDENCE</div>
@@ -1128,6 +1117,51 @@ export default function JobDetailPage({
           {/* RIGHT: Content Panel */}
           <div className="flex-1 bg-gray-50 p-8 overflow-y-auto overflow-x-hidden" style={{ minWidth: 0, maxWidth: 'calc(100vw - 288px)' }}>
           <div key={selectedStageIdx} className="stage-content-enter">
+          {/* Content header */}
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-bold text-gray-900">{content?.title ?? selectedStage.name}</h2>
+            <span
+              className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-semibold ${
+                selectedStage.status === "Complete"
+                  ? "bg-green-100 text-green-700"
+                  : selectedStage.status === "Running"
+                    ? "bg-blue-100 text-blue-700"
+                    : selectedStage.status === "Failed"
+                      ? "bg-red-100 text-red-700"
+                      : "bg-gray-100 text-gray-500"
+              }`}
+            >
+              {selectedStage.status}
+            </span>
+          </div>
+
+          {/* Meta row */}
+          <div className="flex gap-8 mb-6">
+            {selectedStage.durationMs != null && (
+              <div>
+                <div className="text-[11px] text-gray-400 uppercase tracking-wide">Duration</div>
+                <div className="text-sm font-medium text-gray-900 mt-0.5">
+                  {(selectedStage.durationMs / 1000).toFixed(1)} seconds
+                </div>
+              </div>
+            )}
+            {selectedStage.startedAt && (
+              <div>
+                <div className="text-[11px] text-gray-400 uppercase tracking-wide">Started</div>
+                <div className="text-sm font-medium text-gray-900 mt-0.5">
+                  {new Date(selectedStage.startedAt).toLocaleTimeString()}
+                </div>
+              </div>
+            )}
+            {selectedStage.completedAt && (
+              <div>
+                <div className="text-[11px] text-gray-400 uppercase tracking-wide">Completed</div>
+                <div className="text-sm font-medium text-gray-900 mt-0.5">
+                  {new Date(selectedStage.completedAt).toLocaleTimeString()}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Stage content cards */}
           {selectedStage.status === "Pending" ? (
