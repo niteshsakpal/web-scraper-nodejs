@@ -1128,6 +1128,51 @@ export default function JobDetailPage({
           {/* RIGHT: Content Panel */}
           <div className="flex-1 bg-gray-50 p-8 overflow-y-auto overflow-x-hidden" style={{ minWidth: 0, maxWidth: 'calc(100vw - 288px)' }}>
           <div key={selectedStageIdx} className="stage-content-enter">
+          {/* Content header */}
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-bold text-gray-900">{content?.title ?? selectedStage.name}</h2>
+            <span
+              className={`inline-flex items-center rounded-md px-2.5 py-1 text-xs font-semibold ${
+                selectedStage.status === "Complete"
+                  ? "bg-green-100 text-green-700"
+                  : selectedStage.status === "Running"
+                    ? "bg-blue-100 text-blue-700"
+                    : selectedStage.status === "Failed"
+                      ? "bg-red-100 text-red-700"
+                      : "bg-gray-100 text-gray-500"
+              }`}
+            >
+              {selectedStage.status}
+            </span>
+          </div>
+
+          {/* Meta row */}
+          <div className="flex gap-8 mb-6">
+            {selectedStage.durationMs != null && (
+              <div>
+                <div className="text-[11px] text-gray-400 uppercase tracking-wide">Duration</div>
+                <div className="text-sm font-medium text-gray-900 mt-0.5">
+                  {(selectedStage.durationMs / 1000).toFixed(1)} seconds
+                </div>
+              </div>
+            )}
+            {selectedStage.startedAt && (
+              <div>
+                <div className="text-[11px] text-gray-400 uppercase tracking-wide">Started</div>
+                <div className="text-sm font-medium text-gray-900 mt-0.5">
+                  {new Date(selectedStage.startedAt).toLocaleTimeString()}
+                </div>
+              </div>
+            )}
+            {selectedStage.completedAt && (
+              <div>
+                <div className="text-[11px] text-gray-400 uppercase tracking-wide">Completed</div>
+                <div className="text-sm font-medium text-gray-900 mt-0.5">
+                  {new Date(selectedStage.completedAt).toLocaleTimeString()}
+                </div>
+              </div>
+            )}
+          </div>
 
           {/* Stage content cards */}
           {selectedStage.status === "Pending" ? (
