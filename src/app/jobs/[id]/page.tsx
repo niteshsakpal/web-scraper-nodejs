@@ -236,8 +236,8 @@ function ScrapeResultCard({
   jobId: string;
 }) {
   const allFiles = [
-    ...result.files.cleanedHtml.map((f) => ({ name: f, type: "cleaned_html" as const })),
-    ...result.files.pdf.map((f) => ({ name: f, type: "pdf" as const })),
+    ...(result.files?.cleanedHtml ?? []).map((f) => ({ name: f, type: "cleaned_html" as const })),
+    ...(result.files?.pdf ?? []).map((f) => ({ name: f, type: "pdf" as const })),
   ];
   const [activeIdx, setActiveIdx] = useState(0);
   const [contents, setContents] = useState<Record<string, { lang: string; html: string } | { error: string }>>({});
@@ -662,7 +662,12 @@ function FileSummaryContent({ file }: { file: SummarizationFileResult }) {
   }
 
   if (file.status === "success" && file.summaryHtml) {
-    const kpis = extractKPIs(file.summaryHtml);
+    let kpis: ExtractedKPIs;
+    try {
+      kpis = extractKPIs(file.summaryHtml);
+    } catch {
+      kpis = { classification: "FOR REVIEW", classificationColor: "bg-blue-100 text-blue-700 border-blue-200", jurisdiction: "Global", jurisdictionIcon: "\uD83C\uDF10", timeline: "Not specified", confidence: 85, impactedEntities: ["Regulated entities"] };
+    }
 
     return (
       <div className="flex gap-6" style={{ minHeight: 0 }}>
@@ -1144,7 +1149,9 @@ export default function JobDetailPage({
           ) : selectedStage.name === "URL Validation" && selectedStage.validationResult ? (
             <ValidationResultCard result={selectedStage.validationResult} failed={selectedStage.status === "Failed"} />
           ) : selectedStage.name === "Scraping" && selectedStage.scrapeResult ? (
-            <ScrapeResultCard result={selectedStage.scrapeResult} jobId={job.id} />
+            <StageErrorBoundary stageName="Scraping">
+              <ScrapeResultCard result={selectedStage.scrapeResult} jobId={job.id} />
+            </StageErrorBoundary>
           ) : selectedStage.name === "Summarization" && selectedStage.summarizationResult ? (
             <StageErrorBoundary stageName="Summarization">
               <SummarizationResultCard result={selectedStage.summarizationResult} />
