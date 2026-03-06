@@ -4,6 +4,9 @@ import { fetchWithRetry } from "@/lib/fetchWithRetry";
 const SCRAPE_API =
   "https://uj7g3udyerh3nduhtbj76wp7f40bcrie.lambda-url.us-west-2.on.aws/";
 
+// Allow up to 120s for scraping large pages
+export const maxDuration = 120;
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();

@@ -6,6 +6,10 @@ const AI_RESPONSE_API =
 const API_KEY = "4rcj8yUbt21u1DmkzznpTa7F2yynAYRt1wAvlYM9";
 const DEFAULT_LLM_ID = "anthropic.claude-3-7-sonnet-20250219-v1:0";
 
+// Allow up to 300s for LLM calls on large documents (Vercel Pro)
+// Falls back to plan maximum (60s Hobby, 300s Pro)
+export const maxDuration = 300;
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -37,7 +41,7 @@ export async function POST(request: NextRequest) {
         },
         body: JSON.stringify(payload),
       },
-      { maxRetries: 2, baseDelayMs: 3000 } // no timeout — LLM calls can be slow
+      { maxRetries: 1, baseDelayMs: 3000 } // 1 retry only — avoid compounding long LLM calls
     );
 
     const data = await resp.json();

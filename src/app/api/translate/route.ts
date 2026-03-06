@@ -5,6 +5,9 @@ const TRANSLATE_API =
   "https://yw4sjjn8di.execute-api.us-west-2.amazonaws.com/dev/translate";
 const API_KEY = "4rcj8yUbt21u1DmkzznpTa7F2yynAYRt1wAvlYM9";
 
+// Allow up to 120s for translation of large documents
+export const maxDuration = 120;
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
