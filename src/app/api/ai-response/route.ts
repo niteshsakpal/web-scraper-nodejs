@@ -4,7 +4,7 @@ import { fetchWithRetry } from "@/lib/fetchWithRetry";
 const AI_RESPONSE_API =
   "https://yw4sjjn8di.execute-api.us-west-2.amazonaws.com/dev/aiResponse";
 const API_KEY = "4rcj8yUbt21u1DmkzznpTa7F2yynAYRt1wAvlYM9";
-const DEFAULT_LLM_ID = "anthropic.claude-3-7-sonnet-20250219-v1:0";
+const DEFAULT_LLM_ID = "anthropic.claude-sonnet-4-5-20250929-v1:0";
 
 // Allow up to 300s for LLM calls on large documents (Vercel Pro)
 // Falls back to plan maximum (60s Hobby, 300s Pro)
