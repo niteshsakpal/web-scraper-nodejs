@@ -2,8 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { fetchWithRetry } from "@/lib/fetchWithRetry";
 
 const FILE_CONTENT_API =
-  "https://qbrofp25nmeyjhc2dwg5a3r57e0vdadz.lambda-url.us-west-2.on.aws/";
-const API_KEY = "PGsElPXPCorZP2wCSuDwYDWYgy5N8QKJ92ca5n9WTroWBqmh";
+  "https://yw4sjjn8di.execute-api.us-west-2.amazonaws.com/dev/getFileFromS3";
+const API_KEY = "4rcj8yUbt21u1DmkzznpTa7F2yynAYRt1wAvlYM9";
 
 export async function POST(request: NextRequest) {
   try {
